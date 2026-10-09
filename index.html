@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#071710">
+  <meta name="description" content="धौरहरा आबादकारी ग्राम विकास एवं जनसूचना पोर्टल">
+  <title>धौरहरा आबादकारी | ग्राम विकास एवं जनसूचना पोर्टल</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+  <div class="ticker">
+    <div class="wrap ticker-row">
+      <span class="ticker-badge">सूचना</span>
+      <div class="ticker-window"><div id="noticeTicker" class="ticker-text">पोर्टल तैयार किया जा रहा है। सत्यापित सूचनाएँ शीघ्र जोड़ी जाएंगी।</div></div>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="brand" href="#home" aria-label="धौरहरा विकास पोर्टल">
+        <span class="brand-mark">धौ</span>
+        <span><b>धौरहरा विकास पोर्टल</b><small>हमारा गाँव • हमारे मुद्दे • हमारा विकास</small></span>
+      </a>
+
+      <nav class="nav-links">
+        <a href="#works">विकास कार्य</a>
+        <a href="#track">शिकायत ट्रैक करें</a>
+        <a href="#contacts">संपर्क</a>
+        <a href="#raise">समस्या दर्ज करें</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button id="themeToggle" class="icon-btn" aria-label="Dark/Light mode">◐</button>
+        <a class="btn btn-primary btn-small" href="#raise">समस्या दर्ज करें</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">ग्राम विकास एवं जनसूचना पोर्टल</span>
+          <h1>धौरहरा आबादकारी की <em>हर विकास जानकारी</em>, एक जगह।</h1>
+          <p>विकास कार्य, प्रधान कार्यकाल, जनसमस्याएँ, दस्तावेज़ और शिकायत की प्रगति — सत्यापित रिकॉर्ड के आधार पर पारदर्शी रूप में।</p>
+          <div class="hero-actions">
+            <a class="btn btn-primary" href="#works">विकास कार्य देखें</a>
+            <a class="btn btn-ghost" href="#track">शिकायत ट्रैक करें</a>
+          </div>
+        </div>
+
+        <aside class="village-card">
+          <span>ग्राम प्रोफाइल</span>
+          <h2>धौरहरा आबादकारी</h2>
+          <dl>
+            <div><dt>पोस्ट</dt><dd>पदरी पिपरपांती</dd></div>
+            <div><dt>ब्लॉक</dt><dd>विशुनपुरा</dd></div>
+            <div><dt>तहसील / थाना</dt><dd>पडरौना</dd></div>
+            <div><dt>जिला</dt><dd>कुशीनगर, उत्तर प्रदेश</dd></div>
+          </dl>
+        </aside>
+      </div>
+    </section>
+
+    <section class="wrap stats-overlap">
+      <div class="stats">
+        <article><small>कुल विकास कार्य</small><strong id="statWorks">—</strong><span>सत्यापित रिकॉर्ड</span></article>
+        <article><small>पूर्ण कार्य</small><strong id="statCompleted">—</strong><span>Completed</span></article>
+        <article><small>कार्य प्रगति पर</small><strong id="statProgress">—</strong><span>In Progress</span></article>
+        <article><small>लंबित शिकायतें</small><strong id="statPending">—</strong><span>Admin approved</span></article>
+      </div>
+    </section>
+
+    <section id="works" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div><span>Development Works</span><h2>प्रमुख विकास कार्य</h2></div>
+          <p>हर कार्य के साथ स्थिति, वित्तीय वर्ष, लागत, स्थान और उपलब्ध आधिकारिक स्रोत दिखाया जाएगा।</p>
+        </div>
+        <div id="worksGrid" class="cards-grid">
+          <div class="empty-card">अभी सत्यापित विकास कार्य लोड नहीं हुए हैं।</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="track" class="section section-soft">
+      <div class="wrap two-col">
+        <div>
+          <div class="section-head compact">
+            <div><span>Complaint Tracking</span><h2>अपनी शिकायत ट्रैक करें</h2></div>
+          </div>
+          <div class="panel">
+            <label for="trackRef">Reference Number</label>
+            <div class="track-row">
+              <input id="trackRef" type="text" placeholder="जैसे DAP-2026-0001" autocomplete="off">
+              <button id="trackBtn" class="btn btn-primary">Status देखें</button>
+            </div>
+            <div id="trackMessage" class="helper">Reference number दर्ज करके status देखें।</div>
+            <div id="trackResult" class="track-result hidden"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-head compact">
+            <div><span>Transparency</span><h2>सत्यापित स्रोत नीति</h2></div>
+          </div>
+          <div class="panel source-panel">
+            <span class="verified">✓ VERIFIED SOURCE POLICY</span>
+            <h3>Official Data First</h3>
+            <p>eGramSwaraj, MGNREGA, Panchayati Raj, Jal Jeevan Mission, पंचायत रिकॉर्ड, कार्य आदेश और सत्यापित स्थानीय दस्तावेज़ प्राथमिक स्रोत होंगे।</p>
+            <p>अप्रमाणित आरोप या निजी/संवेदनशील जानकारी प्रकाशित नहीं की जाएगी।</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="contacts" class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div><span>Important Contacts</span><h2>महत्वपूर्ण संपर्क</h2></div>
+          <p>केवल सत्यापित और सार्वजनिक रूप से साझा किए जाने योग्य संपर्क यहाँ दिखेंगे।</p>
+        </div>
+        <div id="contactsGrid" class="contact-grid">
+          <div class="empty-card">संपर्क सत्यापन के बाद यहाँ दिखाई देंगे।</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="raise" class="section section-soft">
+      <div class="wrap two-col issue-layout">
+        <div>
+          <div class="section-head compact">
+            <div><span>Citizen Issue Form</span><h2>गाँव की समस्या दर्ज करें</h2></div>
+          </div>
+          <div class="issue-points">
+            <div><b>01</b><span>समस्या का सही स्थान और स्पष्ट विवरण दें।</span></div>
+            <div><b>02</b><span>फोटो जोड़ना उपयोगी है, लेकिन संवेदनशील दस्तावेज़ न भेजें।</span></div>
+            <div><b>03</b><span>शिकायत Admin verification के बाद public होगी।</span></div>
+            <div><b>04</b><span>आपको DAP reference number मिलेगा।</span></div>
+          </div>
+        </div>
+
+        <form id="issueForm" class="panel form-panel" target="submitFrame" method="post">
+          <input type="hidden" name="action" value="submitIssue">
+          <input type="hidden" name="reference" id="referenceField">
+          <input type="hidden" name="source" value="website">
+
+          <div class="form-grid">
+            <label>नाम
+              <input name="name" required maxlength="80" placeholder="अपना नाम">
+            </label>
+            <label>मोबाइल नंबर <small>(वैकल्पिक)</small>
+              <input name="mobile" maxlength="20" placeholder="संपर्क के लिए">
+            </label>
+            <label>समस्या का प्रकार
+              <select name="category" required>
+                <option value="">चुनें</option>
+                <option>सड़क</option>
+                <option>नाली</option>
+                <option>बिजली</option>
+                <option>पानी</option>
+                <option>सफाई</option>
+                <option>सरकारी योजना</option>
+                <option>अन्य</option>
+              </select>
+            </label>
+            <label>स्थान / मोहल्ला
+              <input name="location" required maxlength="140" placeholder="समस्या का स्थान">
+            </label>
+            <label class="full">समस्या का विवरण
+              <textarea name="description" required maxlength="1200" placeholder="समस्या साफ और संक्षेप में लिखें"></textarea>
+            </label>
+          </div>
+
+          <label class="consent">
+            <input type="checkbox" required>
+            <span>मैं पुष्टि करता/करती हूँ कि दी गई जानकारी मेरी जानकारी के अनुसार सही है और इसमें अनावश्यक निजी/संवेदनशील डेटा शामिल नहीं है।</span>
+          </label>
+
+          <button id="submitIssueBtn" class="btn btn-primary" type="submit">Review के लिए भेजें</button>
+          <div id="formStatus" class="helper">Backend URL configure होने के बाद submission live हो जाएगा।</div>
+        </form>
+        <iframe name="submitFrame" class="hidden-frame" title="submission target"></iframe>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap disclaimer">
+        <h2>स्वतंत्र ग्राम सूचना एवं जनहित पोर्टल</h2>
+        <p>यह पोर्टल ग्राम विकास, जनहित और सत्यापित सार्वजनिक जानकारी को व्यवस्थित रूप से प्रस्तुत करने के लिए बनाया गया है। यह किसी व्यक्ति या राजनीतिक पक्ष के समर्थन या विरोध का मंच नहीं है।</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-grid">
+      <div><b>धौरहरा ग्राम विकास पोर्टल</b><p>ग्राम विकास, जनहित, पारदर्शिता और सत्यापित सार्वजनिक जानकारी के लिए डिजिटल मंच।</p></div>
+      <div><b>स्थान</b><p>धौरहरा आबादकारी<br>पोस्ट: पदरी पिपरपांती<br>ब्लॉक: विशुनपुरा<br>जिला: कुशीनगर</p></div>
+      <div><b>मुख्य सेक्शन</b><p>विकास कार्य<br>शिकायत ट्रैकिंग<br>महत्वपूर्ण संपर्क<br>जनसमस्या फॉर्म</p></div>
+    </div>
+    <div class="wrap footer-bottom">© <span id="year"></span> Dhaurahara Abadkari Village Development Portal</div>
+  </footer>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
