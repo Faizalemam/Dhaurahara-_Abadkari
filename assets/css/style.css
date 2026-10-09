@@ -98,3 +98,58 @@ footer{background:#04100a;color:#d8e6de;padding:32px 0}.footer-grid{display:grid
   .success-card{padding:28px 17px 19px;border-radius:20px}
   .reference-box strong{font-size:18px}
 }
+
+/* Gram Panchayat focused scope section */
+.scope-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:16px;
+}
+.scope-card{
+  position:relative;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:21px;
+  box-shadow:var(--shadow);
+}
+.scope-card h3{
+  margin:8px 0 12px;
+  font-size:18px;
+  line-height:1.35;
+}
+.scope-no{
+  display:inline-grid;
+  place-items:center;
+  min-width:36px;
+  height:30px;
+  padding:0 9px;
+  border-radius:9px;
+  background:#def3e7;
+  color:#0c7146;
+  font-size:11px;
+  font-weight:900;
+}
+body.dark .scope-no{background:#153d2c;color:#74e0a7}
+.scope-card ul{
+  margin:0;
+  padding-left:18px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.68;
+}
+.scope-card li+li{margin-top:6px}
+.scope-note{
+  margin-top:18px;
+  padding:16px 18px;
+  border-radius:14px;
+  border:1px solid var(--line);
+  background:var(--surface);
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.65;
+}
+.scope-note b{color:var(--text)}
+
+@media(max-width:950px){.scope-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.scope-grid{grid-template-columns:1fr}.scope-card{padding:18px}}
