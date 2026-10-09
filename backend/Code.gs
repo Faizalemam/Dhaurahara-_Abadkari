@@ -28,6 +28,7 @@ function onOpen() {
     SpreadsheetApp.getUi()
       .createMenu("Dhaurahara Portal")
       .addItem("Setup / Repair Database", "setupProject")
+      .addItem("Authorize Photo Storage", "authorizePhotoStorage")
       .addItem("Photo Folder Info", "showPhotoFolderInfo_")
       .addToUi();
   } catch (e) {}
@@ -67,10 +68,14 @@ function setupProject() {
   ]);
 
   applyIssueValidation_(issues);
-  ensurePhotoFolder_();
 
   SpreadsheetApp.flush();
-  return "Setup completed. Sequential references, photo upload columns and issue status validation are ready.";
+  return "Setup completed. Database, sequential references, photo columns and issue status validation are ready. Run authorizePhotoStorage() separately for Drive photo permission.";
+}
+
+function authorizePhotoStorage() {
+  const folder = ensurePhotoFolder_();
+  return "Photo storage authorized. Folder: " + folder.getUrl();
 }
 
 function ensureSheet_(ss, name, headers, sampleRows) {
@@ -151,7 +156,7 @@ function doGet(e) {
         result = {
           ok:true,
           message:"Dhaurahara Portal API is running",
-          version:"2.0"
+          version:"2.1"
         };
         break;
       default:
@@ -482,14 +487,6 @@ function sanitize_(value, maxLen) {
   return s;
 }
 
-function sanitizeFileName_(value) {
-  let s = String(value || "issue-photo.jpg").trim();
-  s = s.replace(/[\\\/:*?"<>|#%{}[\]]/g, "-");
-  s = s.replace(/\s+/g, "-");
-  if (s.length > 90) s = s.slice(-90);
-  return s || "issue-photo.jpg";
-}
-
 function safeOut_(v) {
   return sanitize_(v, 2000);
 }
@@ -500,8 +497,18 @@ function safeUrl_(v) {
 }
 
 function safePhone_(v) {
-  const s = String(v || "").replace(/[^\d+\-\s()]/g,"").trim();
-  return s.slice(0,25);
+  const s = String(v || "").replace(/[^\d+\-\s()]/g, "").trim();
+  return s.slice(0, 25);
+}
+
+function safeErrorMessage_(err) {
+  const message = String((err && err.message) || "Submission failed");
+
+  if (/photo is too large/i.test(message)) return "Photo is too large. Please use a smaller image.";
+  if (/unsupported photo type/i.test(message)) return "Unsupported photo type. Use JPG, PNG or WebP.";
+  if (/invalid photo data/i.test(message)) return "Photo could not be processed.";
+
+  return "Submission failed. Please try again.";
 }
 
 function truthy_(v) {
@@ -513,24 +520,40 @@ function truthy_(v) {
 
 function formatDate_(v) {
   if (!v) return "";
+
   if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) {
-    return Utilities.formatDate(v, Session.getScriptTimeZone() || "Asia/Kolkata", "dd MMM yyyy");
+    return Utilities.formatDate(
+      v,
+      Session.getScriptTimeZone() || "Asia/Kolkata",
+      "dd MMM yyyy"
+    );
   }
+
   return safeOut_(v);
 }
 
 function formatDateTime_(v) {
   if (!v) return "";
+
   if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) {
-    return Utilities.formatDate(v, Session.getScriptTimeZone() || "Asia/Kolkata", "dd MMM yyyy, hh:mm a");
+    return Utilities.formatDate(
+      v,
+      Session.getScriptTimeZone() || "Asia/Kolkata",
+      "dd MMM yyyy, hh:mm a"
+    );
   }
+
   return safeOut_(v);
 }
 
-function safeErrorMessage_(err) {
-  const msg = String(err && err.message || "");
-  if (/photo.*large/i.test(msg)) return "Photo बहुत बड़ी है। कृपया छोटी फोटो चुनें।";
-  if (/unsupported photo/i.test(msg)) return "केवल JPG, PNG या WEBP फोटो स्वीकार है।";
-  if (/invalid photo/i.test(msg)) return "Photo data invalid है। कृपया दोबारा कोशिश करें।";
-  return "Submission failed. कृपया दोबारा कोशिश करें।";
+function sanitizeFileName_(name) {
+  let clean = String(name || "issue-photo.jpg")
+    .replace(/[\\/:*?"<>|#%{}~&]/g, "_")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!clean) clean = "issue-photo.jpg";
+  if (clean.length > 100) clean = clean.slice(-100);
+
+  return clean;
 }
