@@ -1,458 +1,71 @@
-const CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbyvoSrqR0x3ZPXz8hO6keyJRLvY0FswtJziwUFLW_JbkibLIYeBTrl-nijL3YJ7msMvoA/exec",
-  MAX_UPLOAD_MB: 8,
-  MAX_IMAGE_WIDTH: 1600,
-  JPEG_QUALITY: 0.78
-};
+const CONFIG={API_URL:"https://script.google.com/macros/s/AKfycbyvoSrqR0x3ZPXz8hO6keyJRLvY0FswtJziwUFLW_JbkibLIYeBTrl-nijL3YJ7msMvoA/exec",MAX_UPLOAD_MB:8,MAX_IMAGE_WIDTH:1600,JPEG_QUALITY:.78};
+const qs=s=>document.querySelector(s);
+let submissionTimer=null,schoolCache=[];
 
-const qs = (s) => document.querySelector(s);
-
-document.addEventListener("DOMContentLoaded", () => {
-  qs("#year").textContent = new Date().getFullYear();
-
-  const savedTheme = localStorage.getItem("dap-theme");
-  if (savedTheme === "dark") document.body.classList.add("dark");
-
-  qs("#themeToggle").addEventListener("click", () => {
-    document.body.classList.toggle("dark");
-    localStorage.setItem("dap-theme", document.body.classList.contains("dark") ? "dark" : "light");
-  });
-
-  qs("#trackBtn").addEventListener("click", trackIssue);
-  qs("#trackRef").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") trackIssue();
-  });
-
-  setupIssueForm();
-  setupSuccessModal();
-
-  if (isConfigured()) {
-    loadPublicData();
-  } else {
-    qs("#formStatus").textContent = "Backend अभी configure नहीं है।";
-  }
+document.addEventListener("DOMContentLoaded",()=>{
+  injectSchoolUI();
+  if(qs("#year")) qs("#year").textContent=new Date().getFullYear();
+  if(localStorage.getItem("dap-theme")==="dark") document.body.classList.add("dark");
+  qs("#themeToggle")?.addEventListener("click",()=>{document.body.classList.toggle("dark");localStorage.setItem("dap-theme",document.body.classList.contains("dark")?"dark":"light")});
+  qs("#trackBtn")?.addEventListener("click",trackIssue);
+  qs("#trackRef")?.addEventListener("keydown",e=>{if(e.key==="Enter") trackIssue()});
+  setupIssueForm(); setupSuccessModal(); setupSchoolDirectory();
+  if(isConfigured()) loadPublicData(); else if(qs("#formStatus")) qs("#formStatus").textContent="Backend अभी configure नहीं है।";
 });
 
-function isConfigured() {
-  return CONFIG.API_URL && !CONFIG.API_URL.includes("PASTE_YOUR");
-}
+function isConfigured(){return CONFIG.API_URL&&!CONFIG.API_URL.includes("PASTE_YOUR")}
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function safeHttpUrl(v){v=String(v||"").trim();return /^https?:\/\//i.test(v)?v:""}
 
-function jsonp(params) {
-  return new Promise((resolve, reject) => {
-    if (!isConfigured()) return reject(new Error("Backend not configured"));
+function jsonp(params){return new Promise((resolve,reject)=>{
+  if(!isConfigured()) return reject(new Error("Backend not configured"));
+  const cb="dap_cb_"+Date.now()+"_"+Math.random().toString(36).slice(2),script=document.createElement("script"),url=new URL(CONFIG.API_URL);
+  Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,v));url.searchParams.set("callback",cb);
+  const cleanup=()=>{try{delete window[cb]}catch(e){}script.remove()};
+  const timer=setTimeout(()=>{cleanup();reject(new Error("Request timed out"))},12000);
+  window[cb]=data=>{clearTimeout(timer);cleanup();resolve(data)};
+  script.onerror=()=>{clearTimeout(timer);cleanup();reject(new Error("Request failed"))};
+  script.src=url.toString();document.body.appendChild(script);
+})}
 
-    const cb = "dap_cb_" + Date.now() + "_" + Math.random().toString(36).slice(2);
-    const script = document.createElement("script");
-    const url = new URL(CONFIG.API_URL);
-
-    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-    url.searchParams.set("callback", cb);
-
-    const cleanup = () => {
-      try { delete window[cb]; } catch (e) {}
-      script.remove();
-    };
-
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error("Request timed out"));
-    }, 12000);
-
-    window[cb] = (data) => {
-      clearTimeout(timer);
-      cleanup();
-      resolve(data);
-    };
-
-    script.onerror = () => {
-      clearTimeout(timer);
-      cleanup();
-      reject(new Error("Request failed"));
-    };
-
-    script.src = url.toString();
-    document.body.appendChild(script);
-  });
-}
-
-async function loadPublicData() {
-  try {
-    const [stats, works, contacts, notices] = await Promise.all([
-      jsonp({ action: "stats" }),
-      jsonp({ action: "works" }),
-      jsonp({ action: "contacts" }),
-      jsonp({ action: "notices" })
+async function loadPublicData(){
+  try{
+    const [stats,works,contacts,notices,schools]=await Promise.all([
+      jsonp({action:"stats"}),jsonp({action:"works"}),jsonp({action:"contacts"}),jsonp({action:"notices"}),jsonp({action:"schools"})
     ]);
-
-    renderStats(stats);
-    renderWorks(works);
-    renderContacts(contacts);
-    renderNotices(notices);
-  } catch (e) {
-    console.warn("Public data load failed:", e);
-  }
+    renderStats(stats);renderWorks(works);renderContacts(contacts);renderNotices(notices);renderSchools(schools);
+  }catch(e){console.warn("Public data load failed:",e)}
 }
 
-function renderStats(res) {
-  if (!res || !res.ok) return;
-  const s = res.data || {};
-  qs("#statWorks").textContent = s.works ?? "—";
-  qs("#statCompleted").textContent = s.completed ?? "—";
-  qs("#statProgress").textContent = s.inProgress ?? "—";
-  qs("#statPending").textContent = s.pendingIssues ?? "—";
+function renderStats(res){if(!res?.ok)return;const s=res.data||{};if(qs("#statWorks"))qs("#statWorks").textContent=s.works??"—";if(qs("#statCompleted"))qs("#statCompleted").textContent=s.completed??"—";if(qs("#statProgress"))qs("#statProgress").textContent=s.inProgress??"—";if(qs("#statPending"))qs("#statPending").textContent=s.pendingIssues??"—"}
+function statusChip(status){const x=String(status||"").toLowerCase();if(/complete|पूर्ण|resolved|समाधान/.test(x))return"ok";if(/progress|प्रगति/.test(x))return"warn";return"bad"}
+
+function renderWorks(res){const grid=qs("#worksGrid");if(!grid||!res?.ok)return;const items=res.data||[];if(!items.length){grid.innerHTML='<div class="empty-card">अभी कोई सत्यापित विकास कार्य प्रकाशित नहीं है।</div>';return}grid.innerHTML=items.map(w=>`<article class="work-card"><div class="work-cover"><h3>${esc(w.title)}</h3></div><div class="work-body"><div class="chips"><span class="chip ${statusChip(w.status)}">${esc(w.status||"Status pending")}</span><span class="chip source">${esc(w.source||"Source pending")}</span></div><p>${esc(w.description||"")}</p><div class="work-meta"><div><small>वित्तीय वर्ष</small><b>${esc(w.financialYear||"—")}</b></div><div><small>लागत</small><b>${esc(w.cost||"—")}</b></div><div><small>स्थान</small><b>${esc(w.location||"—")}</b></div><div><small>कार्यकाल</small><b>${esc(w.tenure||"—")}</b></div></div><button class="share-btn" data-share-work="${esc(w.title||"")}">WhatsApp Share</button></div></article>`).join("");grid.querySelectorAll("[data-share-work]").forEach(b=>b.addEventListener("click",()=>shareWork(b.dataset.shareWork)))}
+function renderContacts(res){const grid=qs("#contactsGrid");if(!grid||!res?.ok)return;const items=res.data||[];if(!items.length){grid.innerHTML='<div class="empty-card">संपर्क सत्यापन के बाद यहाँ दिखाई देंगे।</div>';return}grid.innerHTML=items.map(c=>`<article class="contact-card"><h3>${esc(c.role)}</h3><p>${esc(c.name||"नाम सत्यापन लंबित")}</p>${c.phone?`<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>`:"<p>Public contact pending</p>"}</article>`).join("")}
+function renderNotices(res){if(res?.ok&&(res.data||[]).length&&qs("#noticeTicker"))qs("#noticeTicker").textContent=res.data.map(n=>n.title).join("   •   ")}
+
+async function trackIssue(){const ref=qs("#trackRef")?.value.trim().toUpperCase(),msg=qs("#trackMessage"),box=qs("#trackResult");if(!msg||!box)return;box.classList.add("hidden");if(!ref){msg.textContent="कृपया Reference Number दर्ज करें।";return}msg.textContent="Status खोजा जा रहा है…";try{const res=await jsonp({action:"track",reference:ref});if(!res.ok||!res.data){msg.textContent=res.message||"Reference number नहीं मिला।";return}const d=res.data;msg.textContent="";box.innerHTML=d.privateView?`<h3>शिकायत प्राप्त हुई</h3><dl><div><dt>Reference</dt><dd>${esc(d.reference)}</dd></div><div><dt>Status</dt><dd>${esc(d.status)}</dd></div><div><dt>Last Updated</dt><dd>${esc(d.updatedAt||"—")}</dd></div></dl><div class="helper">Verification पूरा होने तक निजी विवरण public tracking में नहीं दिखाए जाते।</div>`:`<h3>${esc(d.category||"शिकायत")}</h3><dl><div><dt>Reference</dt><dd>${esc(d.reference)}</dd></div><div><dt>Status</dt><dd>${esc(d.status)}</dd></div><div><dt>स्थान</dt><dd>${esc(d.location||"—")}</dd></div><div><dt>Latest Update</dt><dd>${esc(d.latestUpdate||"—")}</dd></div><div><dt>Last Updated</dt><dd>${esc(d.updatedAt||"—")}</dd></div></dl>`;box.classList.remove("hidden")}catch(e){msg.textContent="Status load नहीं हो पाया। कृपया बाद में दोबारा कोशिश करें।"}}
+
+function setupIssueForm(){const form=qs("#issueForm"),fileInput=qs("#issuePhoto"),status=qs("#formStatus");if(!form||!fileInput||!status)return;fileInput.addEventListener("change",()=>{const file=fileInput.files?.[0],info=qs("#photoInfo");if(!info)return;if(!file){info.textContent="फोटो Admin review के लिए सुरक्षित Drive folder में रखी जाएगी।";return}const mb=file.size/1048576;info.textContent=`${file.name} • ${mb.toFixed(2)} MB`;if(mb>CONFIG.MAX_UPLOAD_MB){info.textContent=`फोटो बहुत बड़ी है। अधिकतम ${CONFIG.MAX_UPLOAD_MB} MB रखें।`;fileInput.value=""}});form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const btn=qs("#submitIssueBtn");btn.disabled=true;form.classList.add("submitting");status.textContent="शिकायत तैयार की जा रही है…";try{clearPhotoFields();const file=fileInput.files?.[0];if(file){status.textContent="फोटो optimize की जा रही है…";const photo=await preparePhoto(file);qs("#photoBase64").value=photo.base64;qs("#photoMime").value=photo.mime;qs("#photoName").value=photo.name}status.textContent="शिकायत सुरक्षित रूप से भेजी जा रही है…";form.action=CONFIG.API_URL;submissionTimer=setTimeout(()=>{btn.disabled=false;form.classList.remove("submitting");status.textContent="Server response में देर हो रही है। कृपया Sheet check करें या दोबारा कोशिश करें।"},30000);HTMLFormElement.prototype.submit.call(form)}catch(err){btn.disabled=false;form.classList.remove("submitting");status.textContent=err.message||"फोटो तैयार नहीं हो पाई।"}});window.addEventListener("message",handleSubmissionMessage)}
+function handleSubmissionMessage(event){const allowed=event.origin==="https://script.google.com"||event.origin.endsWith(".googleusercontent.com");if(!allowed)return;const data=event.data;if(!data||data.source!=="dhaurahara-portal")return;if(submissionTimer){clearTimeout(submissionTimer);submissionTimer=null}const form=qs("#issueForm"),btn=qs("#submitIssueBtn"),status=qs("#formStatus");btn.disabled=false;form.classList.remove("submitting");if(!data.ok){status.textContent=data.message||"Submission failed. कृपया दोबारा कोशिश करें।";return}status.innerHTML=`✅ शिकायत दर्ज हो गई। Reference: <b>${esc(data.reference)}</b>`;form.reset();clearPhotoFields();if(qs("#photoInfo"))qs("#photoInfo").textContent="फोटो Admin review के लिए सुरक्षित Drive folder में रखी जाएगी।";showSuccess(data.reference);loadPublicData()}
+function clearPhotoFields(){["#photoBase64","#photoMime","#photoName"].forEach(s=>{if(qs(s))qs(s).value=""})}
+async function preparePhoto(file){if(!/^image\/(jpeg|png|webp)$/i.test(file.type))throw new Error("कृपया JPG, PNG या WEBP फोटो चुनें।");if(file.size>CONFIG.MAX_UPLOAD_MB*1048576)throw new Error(`फोटो अधिकतम ${CONFIG.MAX_UPLOAD_MB} MB हो सकती है।`);const dataUrl=await readAsDataURL(file),image=await loadImage(dataUrl),scale=Math.min(1,CONFIG.MAX_IMAGE_WIDTH/image.width),canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));canvas.getContext("2d",{alpha:false}).drawImage(image,0,0,canvas.width,canvas.height);const base64=canvas.toDataURL("image/jpeg",CONFIG.JPEG_QUALITY).split(",")[1];if(!base64||base64.length>3000000)throw new Error("फोटो अभी भी बहुत बड़ी है। कृपया छोटी फोटो चुनें।");const safeBase=(file.name||"issue-photo").replace(/\.[^.]+$/," ").trim().replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,50)||"issue-photo";return{base64,mime:"image/jpeg",name:safeBase+".jpg"}}
+function readAsDataURL(file){return new Promise((resolve,reject)=>{const r=new FileReader;r.onload=()=>resolve(r.result);r.onerror=()=>reject(new Error("फोटो पढ़ी नहीं जा सकी।"));r.readAsDataURL(file)})}
+function loadImage(src){return new Promise((resolve,reject)=>{const img=new Image;img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("फोटो format support नहीं हुआ।"));img.src=src})}
+
+function setupSuccessModal(){qs("#successClose")?.addEventListener("click",hideSuccess);qs("#successDone")?.addEventListener("click",hideSuccess);qs("#copyReference")?.addEventListener("click",async()=>{const ref=qs("#successReference")?.textContent||"";try{await navigator.clipboard.writeText(ref);qs("#copyReference").textContent="Copied";setTimeout(()=>qs("#copyReference").textContent="Copy",1200)}catch(e){qs("#copyReference").textContent="Copy manually"}});qs("#trackThisReference")?.addEventListener("click",()=>{const ref=qs("#successReference")?.textContent||"";hideSuccess();if(qs("#trackRef"))qs("#trackRef").value=ref;qs("#track")?.scrollIntoView({behavior:"smooth"});setTimeout(trackIssue,450)});qs("#successModal")?.addEventListener("click",e=>{if(e.target.id==="successModal")hideSuccess()})}
+function showSuccess(ref){if(qs("#successReference"))qs("#successReference").textContent=ref;qs("#successModal")?.classList.add("show");qs("#successModal")?.setAttribute("aria-hidden","false")}
+function hideSuccess(){qs("#successModal")?.classList.remove("show");qs("#successModal")?.setAttribute("aria-hidden","true")}
+function shareWork(title){window.open("https://wa.me/?text="+encodeURIComponent(`धौरहरा आबादकारी ग्राम विकास पोर्टल\n\n${title}\n${location.href}`),"_blank","noopener")}
+
+function injectSchoolUI(){
+  const nav=qs(".nav-links");if(nav&&!nav.querySelector('a[href="#schools"]')){const a=document.createElement("a");a.href="#schools";a.textContent="विद्यालय";const p=nav.querySelector('a[href="#pradhans"]');p?.insertAdjacentElement("afterend",a)}
+  if(!qs("#schools")&&qs("#works"))qs("#works").insertAdjacentHTML("beforebegin",`<section id="schools" class="section section-soft"><div class="wrap"><div class="section-head"><div><span>Village Schools</span><h2>गाँव के विद्यालय</h2></div><p>विद्यालयों की सत्यापित जानकारी, फोटो, सुविधाएँ और सार्वजनिक समस्याएँ। विद्यालय के नाम पर क्लिक करके पूरा विवरण देखें।</p></div><div class="school-summary"><article><small>कुल प्रकाशित विद्यालय</small><strong id="schoolCount">—</strong><span>Published records</span></article><article><small>दर्ज विद्यालय समस्याएँ</small><strong id="schoolIssueCount">—</strong><span>Public issue records</span></article><article><small>रिकॉर्ड नीति</small><b>Official / Verified First</b><span>केवल सार्वजनिक सुविधा संबंधी सत्यापित मुद्दे।</span></article></div><div id="schoolsGrid" class="schools-grid"><div class="empty-card">विद्यालय डेटा लोड हो रहा है…</div></div><div class="scope-note school-note"><b>Admin:</b> <code>Schools</code> और <code>SchoolIssues</code> शीट से रिकॉर्ड अपडेट करें। केवल Published रिकॉर्ड वेबसाइट पर दिखेंगे।</div></div></section>`);
+  if(!qs("#schoolModal")){const h=`<div id="schoolModal" class="school-modal" aria-hidden="true"><div class="school-detail-card" role="dialog" aria-modal="true" aria-labelledby="schoolModalTitle"><button id="schoolModalClose" class="success-close" type="button">×</button><div id="schoolDetailContent"></div></div></div>`;qs("#successModal")?.insertAdjacentHTML("beforebegin",h)||document.body.insertAdjacentHTML("beforeend",h)}
+  if(!qs("#schoolPortalStyles")){const st=document.createElement("style");st.id="schoolPortalStyles";st.textContent=`.school-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:22px}.school-summary article{background:var(--surface);border:1px solid var(--line);border-radius:17px;padding:17px;box-shadow:var(--shadow)}.school-summary small,.school-summary span{display:block;color:var(--muted)}.school-summary strong{display:block;font-size:30px;margin:4px 0}.school-summary span{font-size:10px;line-height:1.55}.school-summary b{display:block;margin:5px 0;color:var(--brand)}.schools-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:17px}.school-card{width:100%;padding:0;text-align:left;border:1px solid var(--line);border-radius:19px;overflow:hidden;background:var(--surface);color:var(--text);box-shadow:var(--shadow);cursor:pointer}.school-photo{height:185px;background:linear-gradient(135deg,#c4e4d2,#17734c);position:relative;overflow:hidden;display:grid;place-items:center}.school-photo img{width:100%;height:100%;object-fit:cover}.school-photo-placeholder{font-size:26px;font-weight:900;color:#fff}.school-issue-count{position:absolute;right:12px;top:12px;padding:6px 9px;border-radius:999px;background:rgba(6,21,14,.82);color:#fff;font-size:10px;font-weight:900}.school-card-body{padding:17px}.school-card-body h3{margin:0 0 6px;font-size:19px}.school-card-body p{margin:0;color:var(--muted);font-size:11px}.school-card-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.school-card-meta span{padding:5px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--line);font-size:9px}.school-card-action{margin-top:13px;color:var(--brand);font-size:11px;font-weight:900}.school-note code{color:var(--brand)}.school-modal{position:fixed;inset:0;z-index:998;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(2,11,7,.74);backdrop-filter:blur(9px)}.school-modal.show{display:flex}.school-detail-card{position:relative;width:min(900px,100%);max-height:88vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:24px}.school-detail-hero{display:grid;grid-template-columns:300px 1fr;border-bottom:1px solid var(--line)}.school-detail-image{min-height:240px;background:linear-gradient(135deg,#b8dcc8,#176e49);display:grid;place-items:center;overflow:hidden}.school-detail-image img{width:100%;height:100%;object-fit:cover}.school-detail-copy,.school-detail-body{padding:26px}.school-detail-copy h2{margin:7px 0 8px;font-size:30px}.school-detail-copy p,.school-problem p{color:var(--muted);font-size:11px;line-height:1.6}.eyebrow2{color:var(--brand);font-size:10px;font-weight:900}.school-detail-meta{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}.school-detail-meta div,.facility-box{padding:10px;border-radius:11px;background:var(--surface2);border:1px solid var(--line)}.school-detail-meta small{display:block;color:var(--muted);font-size:9px}.school-problems{display:grid;gap:10px}.school-problem{padding:14px;border:1px solid var(--line);border-radius:13px}.school-problem-top{display:flex;justify-content:space-between;gap:10px}.school-problem h4{margin:0}.issue-badges{display:flex;gap:6px;flex-wrap:wrap}.issue-badge{padding:5px 7px;border-radius:999px;font-size:9px;font-weight:900;background:var(--surface2)}.issue-badge.high{background:var(--badbg);color:var(--bad)}.issue-badge.medium{background:var(--warnbg);color:var(--warn)}.issue-badge.resolved{background:var(--okbg);color:var(--ok)}.school-source{margin-top:18px;font-size:10px;color:var(--muted)}.school-source a{color:var(--brand);font-weight:850}@media(max-width:950px){.schools-grid{grid-template-columns:repeat(2,1fr)}.school-summary{grid-template-columns:1fr}.school-detail-hero{grid-template-columns:1fr}}@media(max-width:620px){.schools-grid{grid-template-columns:1fr}.school-detail-meta{grid-template-columns:1fr 1fr}.school-detail-copy,.school-detail-body{padding:18px}}`;document.head.appendChild(st)}
 }
 
-function statusChip(status) {
-  const x = String(status || "").toLowerCase();
-  if (x.includes("complete") || x.includes("पूर्ण") || x.includes("resolved") || x.includes("समाधान")) return "ok";
-  if (x.includes("progress") || x.includes("प्रगति")) return "warn";
-  return "bad";
-}
-
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  }[c]));
-}
-
-function renderWorks(res) {
-  if (!res || !res.ok) return;
-  const items = res.data || [];
-  const grid = qs("#worksGrid");
-
-  if (!items.length) {
-    grid.innerHTML = '<div class="empty-card">अभी कोई सत्यापित विकास कार्य प्रकाशित नहीं है।</div>';
-    return;
-  }
-
-  grid.innerHTML = items.map((w) => `
-    <article class="work-card">
-      <div class="work-cover"><h3>${esc(w.title)}</h3></div>
-      <div class="work-body">
-        <div class="chips">
-          <span class="chip ${statusChip(w.status)}">${esc(w.status || "Status pending")}</span>
-          <span class="chip source">${esc(w.source || "Source pending")}</span>
-        </div>
-        <p>${esc(w.description || "")}</p>
-        <div class="work-meta">
-          <div><small>वित्तीय वर्ष</small><b>${esc(w.financialYear || "—")}</b></div>
-          <div><small>लागत</small><b>${esc(w.cost || "—")}</b></div>
-          <div><small>स्थान</small><b>${esc(w.location || "—")}</b></div>
-          <div><small>कार्यकाल</small><b>${esc(w.tenure || "—")}</b></div>
-        </div>
-        <button class="share-btn" onclick='shareWork(${JSON.stringify(String(w.title || ""))})'>WhatsApp Share</button>
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderContacts(res) {
-  if (!res || !res.ok) return;
-  const items = res.data || [];
-  const grid = qs("#contactsGrid");
-
-  if (!items.length) {
-    grid.innerHTML = '<div class="empty-card">संपर्क सत्यापन के बाद यहाँ दिखाई देंगे।</div>';
-    return;
-  }
-
-  grid.innerHTML = items.map((c) => `
-    <article class="contact-card">
-      <h3>${esc(c.role)}</h3>
-      <p>${esc(c.name || "नाम सत्यापन लंबित")}</p>
-      ${c.phone ? `<a href="tel:${esc(c.phone)}">${esc(c.phone)}</a>` : "<p>Public contact pending</p>"}
-    </article>
-  `).join("");
-}
-
-function renderNotices(res) {
-  if (!res || !res.ok) return;
-  const items = res.data || [];
-  if (items.length) {
-    qs("#noticeTicker").textContent = items.map((n) => n.title).join("   •   ");
-  }
-}
-
-async function trackIssue() {
-  const ref = qs("#trackRef").value.trim().toUpperCase();
-  const msg = qs("#trackMessage");
-  const box = qs("#trackResult");
-
-  box.classList.add("hidden");
-
-  if (!ref) {
-    msg.textContent = "कृपया Reference Number दर्ज करें।";
-    return;
-  }
-
-  if (!isConfigured()) {
-    msg.textContent = "Backend अभी configure नहीं है।";
-    return;
-  }
-
-  msg.textContent = "Status खोजा जा रहा है…";
-
-  try {
-    const res = await jsonp({ action: "track", reference: ref });
-
-    if (!res.ok || !res.data) {
-      msg.textContent = res.message || "Reference number नहीं मिला।";
-      return;
-    }
-
-    const d = res.data;
-    msg.textContent = "";
-
-    if (d.privateView) {
-      box.innerHTML = `
-        <h3>शिकायत प्राप्त हुई</h3>
-        <dl>
-          <div><dt>Reference</dt><dd>${esc(d.reference)}</dd></div>
-          <div><dt>Status</dt><dd>${esc(d.status)}</dd></div>
-          <div><dt>Last Updated</dt><dd>${esc(d.updatedAt || "—")}</dd></div>
-        </dl>
-        <div class="helper">Verification पूरा होने तक निजी विवरण public tracking में नहीं दिखाए जाते।</div>`;
-    } else {
-      box.innerHTML = `
-        <h3>${esc(d.category || "शिकायत")}</h3>
-        <dl>
-          <div><dt>Reference</dt><dd>${esc(d.reference)}</dd></div>
-          <div><dt>Status</dt><dd>${esc(d.status)}</dd></div>
-          <div><dt>स्थान</dt><dd>${esc(d.location || "—")}</dd></div>
-          <div><dt>Latest Update</dt><dd>${esc(d.latestUpdate || "—")}</dd></div>
-          <div><dt>Last Updated</dt><dd>${esc(d.updatedAt || "—")}</dd></div>
-        </dl>`;
-    }
-
-    box.classList.remove("hidden");
-  } catch (e) {
-    msg.textContent = "Status load नहीं हो पाया। कृपया बाद में दोबारा कोशिश करें।";
-  }
-}
-
-function setupIssueForm() {
-  const form = qs("#issueForm");
-  const fileInput = qs("#issuePhoto");
-  const status = qs("#formStatus");
-
-  fileInput.addEventListener("change", () => {
-    const file = fileInput.files && fileInput.files[0];
-    const info = qs("#photoInfo");
-
-    if (!file) {
-      info.textContent = "फोटो Admin review के लिए सुरक्षित Drive folder में रखी जाएगी।";
-      return;
-    }
-
-    const mb = file.size / (1024 * 1024);
-    info.textContent = `${file.name} • ${mb.toFixed(2)} MB`;
-
-    if (mb > CONFIG.MAX_UPLOAD_MB) {
-      info.textContent = `फोटो बहुत बड़ी है। अधिकतम ${CONFIG.MAX_UPLOAD_MB} MB रखें।`;
-      fileInput.value = "";
-    }
-  });
-
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (!isConfigured()) {
-      status.textContent = "Backend अभी configure नहीं है।";
-      return;
-    }
-
-    if (!form.reportValidity()) return;
-
-    const btn = qs("#submitIssueBtn");
-    btn.disabled = true;
-    form.classList.add("submitting");
-    status.textContent = "शिकायत तैयार की जा रही है…";
-
-    try {
-      const file = fileInput.files && fileInput.files[0];
-
-      clearPhotoFields();
-
-      if (file) {
-        status.textContent = "फोटो optimize की जा रही है…";
-        const photo = await preparePhoto(file);
-        qs("#photoBase64").value = photo.base64;
-        qs("#photoMime").value = photo.mime;
-        qs("#photoName").value = photo.name;
-      }
-
-      status.textContent = "शिकायत सुरक्षित रूप से भेजी जा रही है…";
-      form.action = CONFIG.API_URL;
-
-      submissionTimer = setTimeout(() => {
-        btn.disabled = false;
-        form.classList.remove("submitting");
-        status.textContent = "Server response में देर हो रही है। कृपया Sheet check करें या दोबारा कोशिश करें।";
-      }, 30000);
-
-      HTMLFormElement.prototype.submit.call(form);
-    } catch (err) {
-      console.error(err);
-      btn.disabled = false;
-      form.classList.remove("submitting");
-      status.textContent = err.message || "फोटो तैयार नहीं हो पाई। JPG/PNG/WEBP फोटो इस्तेमाल करें।";
-    }
-  });
-
-  window.addEventListener("message", handleSubmissionMessage);
-}
-
-let submissionTimer = null;
-
-function handleSubmissionMessage(event) {
-  const allowed =
-    event.origin === "https://script.google.com" ||
-    event.origin.endsWith(".googleusercontent.com");
-
-  if (!allowed) return;
-
-  const data = event.data;
-  if (!data || data.source !== "dhaurahara-portal") return;
-
-  if (submissionTimer) {
-    clearTimeout(submissionTimer);
-    submissionTimer = null;
-  }
-
-  const form = qs("#issueForm");
-  const btn = qs("#submitIssueBtn");
-  const status = qs("#formStatus");
-
-  btn.disabled = false;
-  form.classList.remove("submitting");
-
-  if (!data.ok) {
-    status.textContent = data.message || "Submission failed. कृपया दोबारा कोशिश करें।";
-    return;
-  }
-
-  status.innerHTML = `✅ शिकायत दर्ज हो गई। Reference: <b>${esc(data.reference)}</b>`;
-  const reference = data.reference;
-
-  form.reset();
-  clearPhotoFields();
-  qs("#photoInfo").textContent = "फोटो Admin review के लिए सुरक्षित Drive folder में रखी जाएगी।";
-
-  showSuccess(reference);
-  loadPublicData();
-}
-
-function clearPhotoFields() {
-  qs("#photoBase64").value = "";
-  qs("#photoMime").value = "";
-  qs("#photoName").value = "";
-}
-
-async function preparePhoto(file) {
-  if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
-    throw new Error("कृपया JPG, PNG या WEBP फोटो चुनें।");
-  }
-
-  if (file.size > CONFIG.MAX_UPLOAD_MB * 1024 * 1024) {
-    throw new Error(`फोटो अधिकतम ${CONFIG.MAX_UPLOAD_MB} MB हो सकती है।`);
-  }
-
-  const dataUrl = await readAsDataURL(file);
-  const image = await loadImage(dataUrl);
-
-  const scale = Math.min(1, CONFIG.MAX_IMAGE_WIDTH / image.width);
-  const width = Math.max(1, Math.round(image.width * scale));
-  const height = Math.max(1, Math.round(image.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d", { alpha: false });
-  ctx.drawImage(image, 0, 0, width, height);
-
-  const outputMime = "image/jpeg";
-  const compressed = canvas.toDataURL(outputMime, CONFIG.JPEG_QUALITY);
-  const base64 = compressed.split(",")[1];
-
-  if (!base64 || base64.length > 3_000_000) {
-    throw new Error("फोटो अभी भी बहुत बड़ी है। कृपया छोटी फोटो चुनें।");
-  }
-
-  const safeBase = (file.name || "issue-photo")
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-zA-Z0-9_-]+/g, "-")
-    .slice(0, 50) || "issue-photo";
-
-  return {
-    base64,
-    mime: outputMime,
-    name: safeBase + ".jpg"
-  };
-}
-
-function readAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("फोटो पढ़ी नहीं जा सकी।"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("फोटो format support नहीं हुआ।"));
-    img.src = src;
-  });
-}
-
-function setupSuccessModal() {
-  qs("#successClose").addEventListener("click", hideSuccess);
-  qs("#successDone").addEventListener("click", hideSuccess);
-
-  qs("#copyReference").addEventListener("click", async () => {
-    const ref = qs("#successReference").textContent;
-    try {
-      await navigator.clipboard.writeText(ref);
-      qs("#copyReference").textContent = "Copied";
-      setTimeout(() => qs("#copyReference").textContent = "Copy", 1200);
-    } catch (e) {
-      qs("#copyReference").textContent = "Copy manually";
-    }
-  });
-
-  qs("#trackThisReference").addEventListener("click", () => {
-    const ref = qs("#successReference").textContent;
-    hideSuccess();
-    qs("#trackRef").value = ref;
-    qs("#track").scrollIntoView({ behavior: "smooth" });
-    setTimeout(trackIssue, 450);
-  });
-
-  qs("#successModal").addEventListener("click", (e) => {
-    if (e.target.id === "successModal") hideSuccess();
-  });
-}
-
-function showSuccess(reference) {
-  qs("#successReference").textContent = reference;
-  qs("#successModal").classList.add("show");
-  qs("#successModal").setAttribute("aria-hidden", "false");
-}
-
-function hideSuccess() {
-  qs("#successModal").classList.remove("show");
-  qs("#successModal").setAttribute("aria-hidden", "true");
-}
-
-function shareWork(title) {
-  const text = encodeURIComponent(`धौरहरा आबादकारी ग्राम विकास पोर्टल\n\n${title}\n${location.href}`);
-  window.open("https://wa.me/?text=" + text, "_blank", "noopener");
-}
+function setupSchoolDirectory(){const grid=qs("#schoolsGrid"),modal=qs("#schoolModal"),close=qs("#schoolModalClose");if(!grid||!modal||!close)return;grid.addEventListener("click",e=>{const c=e.target.closest("[data-school-id]");if(c)openSchoolDetails(c.dataset.schoolId)});close.addEventListener("click",hideSchoolDetails);modal.addEventListener("click",e=>{if(e.target===modal)hideSchoolDetails()});document.addEventListener("keydown",e=>{if(e.key==="Escape")hideSchoolDetails()})}
+function renderSchools(res){const grid=qs("#schoolsGrid");if(!grid)return;if(!res?.ok){grid.innerHTML='<div class="empty-card">विद्यालय डेटा अभी उपलब्ध नहीं है।</div>';return}schoolCache=Array.isArray(res.data)?res.data:[];if(qs("#schoolCount"))qs("#schoolCount").textContent=schoolCache.length;if(qs("#schoolIssueCount"))qs("#schoolIssueCount").textContent=schoolCache.reduce((n,s)=>n+(s.issues||[]).length,0);if(!schoolCache.length){grid.innerHTML='<div class="empty-card">अभी कोई विद्यालय प्रकाशित नहीं है।</div>';return}grid.innerHTML=schoolCache.map(s=>{const p=safeHttpUrl(s.photoURL),issues=s.issues||[];return`<button class="school-card" type="button" data-school-id="${esc(s.id)}"><div class="school-photo">${p?`<img src="${esc(p)}" alt="${esc(s.name||"विद्यालय")}">`:'<div class="school-photo-placeholder">विद्यालय</div>'}<span class="school-issue-count">${issues.length} समस्या</span></div><div class="school-card-body"><h3>${esc(s.name||"विद्यालय")}</h3><p>${esc(s.location||"स्थान सत्यापन लंबित")}</p><div class="school-card-meta">${s.type?`<span>${esc(s.type)}</span>`:""}${s.classes?`<span>कक्षाएँ: ${esc(s.classes)}</span>`:""}${s.verified?'<span>✓ Verified</span>':'<span>Verification pending</span>'}</div><div class="school-card-action">पूरा विवरण और समस्याएँ देखें →</div></div></button>`}).join("")}
+function openSchoolDetails(id){const s=schoolCache.find(x=>String(x.id)===String(id));if(!s)return;const modal=qs("#schoolModal"),box=qs("#schoolDetailContent"),photo=safeHttpUrl(s.photoURL),src=safeHttpUrl(s.sourceURL),issues=s.issues||[];const ph=issues.length?issues.map(i=>{const pc=String(i.priority||"").toLowerCase(),sc=/resolved|समाधान/i.test(i.status||"")?"resolved":"";return`<article class="school-problem"><div class="school-problem-top"><div><h4>${esc(i.title||"विद्यालय समस्या")}</h4>${i.category?`<p>${esc(i.category)}</p>`:""}</div><div class="issue-badges">${i.priority?`<span class="issue-badge ${pc}">${esc(i.priority)}</span>`:""}${i.status?`<span class="issue-badge ${sc}">${esc(i.status)}</span>`:""}</div></div>${i.description?`<p>${esc(i.description)}</p>`:""}</article>`}).join(""):'<div class="empty-card">इस विद्यालय की कोई प्रकाशित समस्या अभी दर्ज नहीं है।</div>';box.innerHTML=`<div class="school-detail-hero"><div class="school-detail-image">${photo?`<img src="${esc(photo)}" alt="${esc(s.name||"विद्यालय")}">`:'<div class="school-photo-placeholder">विद्यालय</div>'}</div><div class="school-detail-copy"><span class="eyebrow2">School Profile</span><h2 id="schoolModalTitle">${esc(s.name||"विद्यालय")}</h2><p>${esc(s.about||"विद्यालय का विवरण यहाँ दिखाया जाएगा।")}</p><div class="school-detail-meta"><div><small>प्रकार</small><b>${esc(s.type||"—")}</b></div><div><small>प्रबंधन</small><b>${esc(s.management||"—")}</b></div><div><small>स्थान</small><b>${esc(s.location||"—")}</b></div><div><small>कक्षाएँ</small><b>${esc(s.classes||"—")}</b></div><div><small>छात्र संख्या</small><b>${esc(s.studentCount||"—")}</b></div><div><small>प्रधानाध्यापक</small><b>${esc(s.headTeacher||"—")}</b></div></div></div></div><div class="school-detail-body"><h3>उपलब्ध सुविधाएँ</h3><div class="facility-box">${esc(s.facilities||"जानकारी जोड़ी जानी है।")}</div><h3 style="margin-top:24px">Highlighted समस्याएँ</h3><div class="school-problems">${ph}</div><div class="school-source">Last updated: ${esc(s.updatedAt||"—")} ${s.source?`• Source: ${esc(s.source)}`:""} ${src?`• <a href="${esc(src)}" target="_blank" rel="noopener">Official source देखें</a>`:""}</div></div>`;modal.classList.add("show");modal.setAttribute("aria-hidden","false")}
+function hideSchoolDetails(){qs("#schoolModal")?.classList.remove("show");qs("#schoolModal")?.setAttribute("aria-hidden","true")}
