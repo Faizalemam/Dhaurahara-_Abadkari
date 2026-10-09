@@ -143,8 +143,10 @@
 
         <form id="issueForm" class="panel form-panel" target="submitFrame" method="post">
           <input type="hidden" name="action" value="submitIssue">
-          <input type="hidden" name="reference" id="referenceField">
           <input type="hidden" name="source" value="website">
+          <input type="hidden" name="photoBase64" id="photoBase64">
+          <input type="hidden" name="photoMime" id="photoMime">
+          <input type="hidden" name="photoName" id="photoName">
 
           <div class="form-grid">
             <label>नाम
@@ -171,6 +173,13 @@
             <label class="full">समस्या का विवरण
               <textarea name="description" required maxlength="1200" placeholder="समस्या साफ और संक्षेप में लिखें"></textarea>
             </label>
+            <label class="full photo-field">समस्या की फोटो <small>(वैकल्पिक)</small>
+              <span class="photo-upload">
+                <input id="issuePhoto" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+                <span><b>फोटो चुनें</b><small>JPG / PNG / WEBP • अधिकतम 8 MB</small></span>
+              </span>
+              <span id="photoInfo" class="photo-info">फोटो Admin review के लिए सुरक्षित Drive folder में रखी जाएगी।</span>
+            </label>
           </div>
 
           <label class="consent">
@@ -179,7 +188,7 @@
           </label>
 
           <button id="submitIssueBtn" class="btn btn-primary" type="submit">Review के लिए भेजें</button>
-          <div id="formStatus" class="helper">Backend URL configure होने के बाद submission live हो जाएगा।</div>
+          <div id="formStatus" class="helper">Submit करने पर system automatic sequential DAP reference number बनाएगा।</div>
         </form>
         <iframe name="submitFrame" class="hidden-frame" title="submission target"></iframe>
       </div>
@@ -201,6 +210,25 @@
     </div>
     <div class="wrap footer-bottom">© <span id="year"></span> Dhaurahara Abadkari Village Development Portal</div>
   </footer>
+
+  <div id="successModal" class="success-modal" aria-hidden="true">
+    <div class="success-card" role="dialog" aria-modal="true" aria-labelledby="successTitle">
+      <button id="successClose" class="success-close" type="button" aria-label="Close">×</button>
+      <div class="success-icon">✓</div>
+      <span class="success-kicker">COMPLAINT REGISTERED</span>
+      <h2 id="successTitle">शिकायत सफलतापूर्वक दर्ज हुई</h2>
+      <p>आपका Reference Number</p>
+      <div class="reference-box">
+        <strong id="successReference">DAP-2026-0001</strong>
+        <button id="copyReference" type="button">Copy</button>
+      </div>
+      <p class="success-note">इस नंबर को सुरक्षित रखें। इसी से आप शिकायत की स्थिति ट्रैक कर सकते हैं।</p>
+      <div class="success-actions">
+        <button id="trackThisReference" class="btn btn-primary" type="button">Status Track करें</button>
+        <button id="successDone" class="btn modal-secondary" type="button">ठीक है</button>
+      </div>
+    </div>
+  </div>
 
   <script src="assets/js/app.js"></script>
 </body>
