@@ -4,7 +4,9 @@ const SHEETS = {
   ISSUES: "Issues",
   NOTICES: "Notices",
   CONTACTS: "Contacts",
-  PRADHANS: "Pradhans"
+  PRADHANS: "Pradhans",
+  SCHOOLS: "Schools",
+  SCHOOL_ISSUES: "SchoolIssues"
 };
 
 const ISSUE_HEADERS = [
@@ -20,6 +22,20 @@ const ISSUE_STATUSES = [
   "Resolved",
   "Rejected"
 ];
+
+const SCHOOL_HEADERS = [
+  "ID","SchoolName","SchoolType","Management","Location","Classes","StudentCount",
+  "HeadTeacher","PhotoURL","About","Facilities","Verified","Source","SourceURL",
+  "Published","SortOrder","UpdatedAt"
+];
+
+const SCHOOL_ISSUE_HEADERS = [
+  "ID","SchoolID","IssueTitle","Category","Description","Status","Priority",
+  "PhotoURL","Source","SourceURL","Published","UpdatedAt"
+];
+
+const SCHOOL_ISSUE_STATUSES = ["Under Verification","Open","In Progress","Resolved"];
+const SCHOOL_ISSUE_PRIORITIES = ["High","Medium","Low"];
 
 const PHOTO_FOLDER_NAME = "Dhaurahara Portal - Issue Photos";
 
@@ -67,10 +83,14 @@ function setupProject() {
     "ID","Name","TenureFrom","TenureTo","PhotoURL","Notes","Verified","Source","SourceURL"
   ]);
 
+  const schools = ensureSheet_(ss, SHEETS.SCHOOLS, SCHOOL_HEADERS);
+  const schoolIssues = ensureSheet_(ss, SHEETS.SCHOOL_ISSUES, SCHOOL_ISSUE_HEADERS);
+
   applyIssueValidation_(issues);
+  applySchoolValidation_(schools, schoolIssues);
 
   SpreadsheetApp.flush();
-  return "Setup completed. Database, sequential references, photo columns and issue status validation are ready. Run authorizePhotoStorage() separately for Drive photo permission.";
+  return "Setup completed. Database, school directory, school issues and complaint validation are ready. Run authorizePhotoStorage() separately for Drive photo permission.";
 }
 
 function authorizePhotoStorage() {
@@ -121,6 +141,26 @@ function applyIssueValidation_(sh) {
   sh.getRange(2, 11, rows, 1).insertCheckboxes();
 }
 
+function applySchoolValidation_(schools, schoolIssues) {
+  const schoolRows = Math.max(2, schools.getMaxRows() - 1);
+  schools.getRange(2, 12, schoolRows, 1).insertCheckboxes();
+  schools.getRange(2, 15, schoolRows, 1).insertCheckboxes();
+
+  const issueRows = Math.max(2, schoolIssues.getMaxRows() - 1);
+  const statusRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(SCHOOL_ISSUE_STATUSES, true)
+    .setAllowInvalid(false)
+    .build();
+  const priorityRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(SCHOOL_ISSUE_PRIORITIES, true)
+    .setAllowInvalid(false)
+    .build();
+
+  schoolIssues.getRange(2, 6, issueRows, 1).setDataValidation(statusRule);
+  schoolIssues.getRange(2, 7, issueRows, 1).setDataValidation(priorityRule);
+  schoolIssues.getRange(2, 11, issueRows, 1).insertCheckboxes();
+}
+
 function showPhotoFolderInfo_() {
   const folder = ensurePhotoFolder_();
   SpreadsheetApp.getUi().alert(
@@ -149,6 +189,9 @@ function doGet(e) {
       case "notices":
         result = {ok:true, data:getNotices_()};
         break;
+      case "schools":
+        result = {ok:true, data:getSchools_()};
+        break;
       case "track":
         result = trackIssue_(String(e.parameter.reference || ""));
         break;
@@ -156,7 +199,7 @@ function doGet(e) {
         result = {
           ok:true,
           message:"Dhaurahara Portal API is running",
-          version:"2.1"
+          version:"2.2"
         };
         break;
       default:
@@ -410,6 +453,56 @@ function getNotices_() {
     }));
 }
 
+function getSchools_() {
+  const publishedIssues = rows_(SHEETS.SCHOOL_ISSUES)
+    .filter(r => truthy_(r.Published))
+    .map(r => ({
+      id:safeOut_(r.ID),
+      schoolId:safeOut_(r.SchoolID),
+      title:safeOut_(r.IssueTitle),
+      category:safeOut_(r.Category),
+      description:safeOut_(r.Description),
+      status:safeOut_(r.Status || "Under Verification"),
+      priority:safeOut_(r.Priority),
+      photoURL:safeUrl_(r.PhotoURL),
+      source:safeOut_(r.Source),
+      sourceURL:safeUrl_(r.SourceURL),
+      updatedAt:formatDateTime_(r.UpdatedAt)
+    }));
+
+  const bySchool = {};
+  publishedIssues.forEach(issue => {
+    const key = String(issue.schoolId || "").trim();
+    if (!key) return;
+    (bySchool[key] ||= []).push(issue);
+  });
+
+  return rows_(SHEETS.SCHOOLS)
+    .filter(r => truthy_(r.Published))
+    .sort((a,b) => Number(a.SortOrder || 999) - Number(b.SortOrder || 999))
+    .map(r => {
+      const id = safeOut_(r.ID);
+      return {
+        id:id,
+        name:safeOut_(r.SchoolName),
+        type:safeOut_(r.SchoolType),
+        management:safeOut_(r.Management),
+        location:safeOut_(r.Location),
+        classes:safeOut_(r.Classes),
+        studentCount:safeOut_(r.StudentCount),
+        headTeacher:safeOut_(r.HeadTeacher),
+        photoURL:safeUrl_(r.PhotoURL),
+        about:safeOut_(r.About),
+        facilities:safeOut_(r.Facilities),
+        verified:truthy_(r.Verified),
+        source:safeOut_(r.Source),
+        sourceURL:safeUrl_(r.SourceURL),
+        updatedAt:formatDateTime_(r.UpdatedAt),
+        issues:bySchool[String(id)] || []
+      };
+    });
+}
+
 function trackIssue_(reference) {
   const ref = sanitize_(reference, 40).toUpperCase();
   if (!ref) return {ok:false, message:"Reference required"};
@@ -487,6 +580,14 @@ function sanitize_(value, maxLen) {
   return s;
 }
 
+function sanitizeFileName_(value) {
+  let s = String(value || "issue-photo.jpg").trim();
+  s = s.replace(/[\\\/:*?"<>|#%{}[\]]/g, "-");
+  s = s.replace(/\s+/g, "-");
+  if (s.length > 90) s = s.slice(-90);
+  return s || "issue-photo.jpg";
+}
+
 function safeOut_(v) {
   return sanitize_(v, 2000);
 }
@@ -497,18 +598,8 @@ function safeUrl_(v) {
 }
 
 function safePhone_(v) {
-  const s = String(v || "").replace(/[^\d+\-\s()]/g, "").trim();
-  return s.slice(0, 25);
-}
-
-function safeErrorMessage_(err) {
-  const message = String((err && err.message) || "Submission failed");
-
-  if (/photo is too large/i.test(message)) return "Photo is too large. Please use a smaller image.";
-  if (/unsupported photo type/i.test(message)) return "Unsupported photo type. Use JPG, PNG or WebP.";
-  if (/invalid photo data/i.test(message)) return "Photo could not be processed.";
-
-  return "Submission failed. Please try again.";
+  const s = String(v || "").replace(/[^\d+\-\s()]/g,"").trim();
+  return s.slice(0,25);
 }
 
 function truthy_(v) {
@@ -520,40 +611,24 @@ function truthy_(v) {
 
 function formatDate_(v) {
   if (!v) return "";
-
   if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) {
-    return Utilities.formatDate(
-      v,
-      Session.getScriptTimeZone() || "Asia/Kolkata",
-      "dd MMM yyyy"
-    );
+    return Utilities.formatDate(v, Session.getScriptTimeZone() || "Asia/Kolkata", "dd MMM yyyy");
   }
-
   return safeOut_(v);
 }
 
 function formatDateTime_(v) {
   if (!v) return "";
-
   if (Object.prototype.toString.call(v) === "[object Date]" && !isNaN(v)) {
-    return Utilities.formatDate(
-      v,
-      Session.getScriptTimeZone() || "Asia/Kolkata",
-      "dd MMM yyyy, hh:mm a"
-    );
+    return Utilities.formatDate(v, Session.getScriptTimeZone() || "Asia/Kolkata", "dd MMM yyyy, hh:mm a");
   }
-
   return safeOut_(v);
 }
 
-function sanitizeFileName_(name) {
-  let clean = String(name || "issue-photo.jpg")
-    .replace(/[\\/:*?"<>|#%{}~&]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!clean) clean = "issue-photo.jpg";
-  if (clean.length > 100) clean = clean.slice(-100);
-
-  return clean;
+function safeErrorMessage_(err) {
+  const msg = String(err && err.message || "");
+  if (/photo.*large/i.test(msg)) return "Photo बहुत बड़ी है। कृपया छोटी फोटो चुनें।";
+  if (/unsupported photo/i.test(msg)) return "केवल JPG, PNG या WEBP फोटो स्वीकार है।";
+  if (/invalid photo/i.test(msg)) return "Photo data invalid है। कृपया दोबारा कोशिश करें।";
+  return "Submission failed. कृपया दोबारा कोशिश करें।";
 }
