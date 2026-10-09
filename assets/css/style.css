@@ -46,3 +46,55 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}.
 footer{background:#04100a;color:#d8e6de;padding:32px 0}.footer-grid{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:25px}.footer-grid p{color:#91a89c;font-size:12px;line-height:1.7}.footer-bottom{margin-top:22px;padding-top:17px;border-top:1px solid rgba(255,255,255,.07);color:#71897d;font-size:11px}
 @media(max-width:950px){.nav-links{display:none}.hero-grid,.two-col{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.cards-grid{grid-template-columns:repeat(2,1fr)}.contact-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:620px){.wrap{width:min(100% - 20px,1180px)}.hero{padding:56px 0 86px}.hero h1{letter-spacing:-1.1px}.stats,.cards-grid,.contact-grid,.form-grid,.footer-grid{grid-template-columns:1fr}.section{padding:52px 0}.section-head{flex-direction:column;align-items:flex-start}.track-row{flex-direction:column}.btn-small{display:none}}
+
+/* V2 complaint submission enhancements */
+.photo-field{display:block}
+.photo-upload{
+  margin-top:7px;display:flex;align-items:center;gap:12px;padding:14px;border:1.5px dashed var(--line);
+  border-radius:13px;background:var(--surface2);cursor:pointer;position:relative;overflow:hidden
+}
+.photo-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-upload>span{display:flex;flex-direction:column;gap:3px}
+.photo-upload b{font-size:12px;color:var(--brand)}
+.photo-upload small,.photo-info{color:var(--muted);font-size:10px;font-weight:500}
+.photo-info{display:block;margin-top:7px;line-height:1.5}
+.form-panel.submitting{opacity:.78;pointer-events:none}
+.form-panel.submitting #submitIssueBtn{filter:saturate(.7)}
+
+.success-modal{
+  position:fixed;inset:0;z-index:999;display:none;align-items:center;justify-content:center;padding:18px;
+  background:rgba(2,11,7,.72);backdrop-filter:blur(9px)
+}
+.success-modal.show{display:flex}
+.success-card{
+  width:min(500px,100%);position:relative;text-align:center;background:var(--surface);color:var(--text);
+  border:1px solid var(--line);border-radius:24px;padding:30px 24px 24px;box-shadow:0 28px 90px rgba(0,0,0,.28)
+}
+.success-close{
+  position:absolute;right:14px;top:12px;width:36px;height:36px;border:0;border-radius:10px;
+  background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer
+}
+.success-icon{
+  width:66px;height:66px;margin:0 auto 13px;border-radius:50%;display:grid;place-items:center;
+  color:#fff;font-size:32px;font-weight:900;background:linear-gradient(145deg,#16a568,#087948);
+  box-shadow:0 13px 32px rgba(13,122,77,.28)
+}
+.success-kicker{font-size:10px;letter-spacing:1.2px;font-weight:900;color:var(--brand)}
+.success-card h2{margin:7px 0 10px;font-size:27px;letter-spacing:-.5px}
+.success-card>p{color:var(--muted);font-size:12px}
+.reference-box{
+  margin:14px auto 9px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 16px
+}
+.reference-box strong{font-size:21px;letter-spacing:.7px;color:var(--brand)}
+.reference-box button{
+  border:1px solid var(--line);background:var(--surface);color:var(--text);padding:9px 11px;
+  border-radius:9px;font-size:11px;font-weight:850;cursor:pointer
+}
+.success-note{max-width:390px;margin:10px auto 0!important;line-height:1.6}
+.success-actions{display:flex;gap:9px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.modal-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+@media(max-width:620px){
+  .success-card{padding:28px 17px 19px;border-radius:20px}
+  .reference-box strong{font-size:18px}
+}
